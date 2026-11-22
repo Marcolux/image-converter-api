@@ -40,8 +40,9 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, next) => {
 
   const [status, body] = toResponse(err)
 
-  // Unexpected errors: full details in the server log (Render → Logs), generic message to the client
-  if (status >= 500) console.error(err)
+  // Unexpected errors: full details in the server log (Render → Logs), generic message to the client.
+  // Our own HttpErrors (e.g. 503 SERVER_BUSY) are expected, so they don't fill the log with stack traces.
+  if (status >= 500 && !(err instanceof HttpError)) console.error(err)
 
   res.status(status).json(body)
 }

@@ -12,6 +12,10 @@ const EXPOSED_HEADERS = [
   'X-Height',
   'X-Quality',
   'X-Within-Budget',
+  // Rate limit / busy responses: lets the frontend say "try again in X"
+  'Retry-After',
+  'RateLimit',
+  'RateLimit-Policy',
 ]
 
 /**

@@ -1,6 +1,7 @@
 import type { Request, Response } from "express"
 import { convertImage } from "../core/index.js"
 import { HttpError } from "../errors/HttpErrors.js"
+import { conversionSlots } from "../middleware/conversionQueue.js"
 import { fileSchema } from "../validation/options.validations.js"
 
 // No try/catch: Express 5 sends anything thrown here (including from async code)
@@ -15,7 +16,9 @@ const convertImages = {
         // Throws a ZodError on invalid settings → 400 INVALID_SETTINGS
         const settings = fileSchema.parse(req.body)
 
-        const result = await convertImage(req.file.buffer, settings)
+        // Waits here when another conversion is running (CONVERT_CONCURRENCY at a time)
+        const file = req.file
+        const result = await conversionSlots.run(() => convertImage(file.buffer, settings))
         res.type(result.output.mime).send(result.output.buffer)
     }
 }
