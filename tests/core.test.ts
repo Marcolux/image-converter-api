@@ -9,6 +9,8 @@ import {
   convertImageToWidths,
   type ConvertOptions,
 } from '../src/core/index.js'
+import { decodeImage } from '../src/core/decode.js'
+import { encodeRaw, encodeWithinBudget, nextProbe, resizeToRaw } from '../src/core/encode.js'
 import { flatPng, noiseJpeg, rotatedJpegWithExif } from './helpers/images.js'
 
 const base: ConvertOptions = { format: 'webp', startQuality: 90, minQuality: 40 }
@@ -150,5 +152,36 @@ describe('errors', () => {
 
   it('rejects an invalid width in the widths list', async () => {
     await expectImageError(convertImageToWidths(await flatPng(10, 10), [800, -1], base), 'INVALID_OPTIONS')
+  })
+})
+
+describe('quality search', () => {
+  it('finds the same quality as trying every quality one by one', async () => {
+    const raw = await resizeToRaw(await decodeImage(await noiseJpeg(200, 200)), undefined)
+    const startQuality = 90
+    const minQuality = 40
+
+    // Exhaustive reference: size at every quality
+    const sizes = new Map<number, number>()
+    for (let q = minQuality; q <= startQuality; q++) sizes.set(q, (await encodeRaw(raw, 'webp', q)).length)
+    const smallest = sizes.get(minQuality)!
+    const largest = sizes.get(startQuality)!
+
+    for (let step = 0; step <= 8; step++) {
+      const budgetBytes = smallest * 0.95 + ((largest - smallest * 0.95) * step) / 8
+      const maxKB = budgetBytes / 1024
+      let expected = minQuality
+      for (let q = minQuality; q <= startQuality; q++) if (sizes.get(q)! <= budgetBytes) expected = q
+
+      const result = await encodeWithinBudget(raw, 'webp', { startQuality, minQuality, maxKB })
+      expect(result.quality, `budget ${maxKB.toFixed(1)} KB`).toBe(expected)
+    }
+  }, 60_000)
+
+  it('nextProbe always stays inside the unknown range', () => {
+    const tooBig = { quality: 90, bytes: 500_000 }
+    expect(nextProbe(40, 89, 400_000, undefined, tooBig, undefined)).toBe(64) // midpoint
+    expect(nextProbe(40, 89, 10, undefined, tooBig, { quality: 100, bytes: 900_000 })).toBe(40) // clamped low
+    expect(nextProbe(70, 89, 499_999, { quality: 69, bytes: 100_000 }, tooBig, undefined)).toBe(89) // clamped high
   })
 })
