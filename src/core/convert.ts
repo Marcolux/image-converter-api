@@ -1,7 +1,7 @@
 import { decodeImage, type ImageSource } from './decode.js'
 import { encodeWithinBudget, resizeToRaw } from './encode.js'
 import { FORMATS, type OutputFormat } from './formats.js'
-import { assertValidOptions, type ConvertOptions } from './options.js'
+import { assertValidOptions, resolveQuality, type ConvertOptions } from './options.js'
 
 export interface InputInfo {
   format: string
@@ -79,7 +79,10 @@ async function convertSource(
   width: number | undefined,
 ): Promise<OutputImage> {
   const raw = await resizeToRaw(source, width)
-  const { buffer, quality, withinBudget } = await encodeWithinBudget(raw, options.format, options)
+  const { buffer, quality, withinBudget } = await encodeWithinBudget(raw, options.format, {
+    ...resolveQuality(options),
+    maxKB: options.maxKB,
+  })
   const { ext, mime } = FORMATS[options.format]
 
   return {

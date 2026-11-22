@@ -4,6 +4,7 @@ import {
   DEFAULT_OPTIONS,
   ImageError,
   OUTPUT_FORMATS,
+  resolveQuality,
   convertImage,
   convertImageToWidths,
   type ConvertOptions,
@@ -83,6 +84,13 @@ describe('convertImage', () => {
     expect(meta.orientation).toBeUndefined()
   })
 
+  it('uses the format default quality when none is given', async () => {
+    const webp = await convertImage(await noiseJpeg(300, 300), { format: 'webp' })
+    const avif = await convertImage(await noiseJpeg(300, 300), { format: 'avif' })
+    expect(webp.output.quality).toBe(100)
+    expect(avif.output.quality).toBe(70)
+  })
+
   it('works with the default options', async () => {
     const { output } = await convertImage(await noiseJpeg(1500, 1000), DEFAULT_OPTIONS)
     expect(output.width).toBe(1000)
@@ -105,6 +113,18 @@ describe('convertImageToWidths', () => {
   it('keeps the original size when the list is empty', async () => {
     const { outputs } = await convertImageToWidths(await flatPng(500, 250), [], base)
     expect(outputs.map(o => o.width)).toEqual([500])
+  })
+})
+
+describe('resolveQuality', () => {
+  it.each<[string, ConvertOptions, { startQuality: number; minQuality: number }]>([
+    ['webp defaults', { format: 'webp' }, { startQuality: 100, minQuality: 60 }],
+    ['avif defaults', { format: 'avif' }, { startQuality: 70, minQuality: 40 }],
+    ['explicit values win', { format: 'avif', startQuality: 90, minQuality: 50 }, { startQuality: 90, minQuality: 50 }],
+    ['only min, above default start', { format: 'avif', minQuality: 80 }, { startQuality: 80, minQuality: 80 }],
+    ['only start, below default min', { format: 'avif', startQuality: 30 }, { startQuality: 30, minQuality: 30 }],
+  ])('%s', (_, options, expected) => {
+    expect(resolveQuality(options)).toEqual(expected)
   })
 })
 

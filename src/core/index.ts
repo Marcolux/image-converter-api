@@ -1,7 +1,7 @@
 // Public API of the core. Routes and the CLI import from here only.
 export { convertImage, convertImageToWidths } from './convert.js'
 export type { ConvertResult, ConvertManyResult, InputInfo, OutputImage } from './convert.js'
-export { DEFAULT_OPTIONS, assertValidOptions } from './options.js'
+export { DEFAULT_OPTIONS, assertValidOptions, resolveQuality } from './options.js'
 export type { ConvertOptions } from './options.js'
 export { FORMATS, OUTPUT_FORMATS, isOutputFormat } from './formats.js'
 export type { OutputFormat } from './formats.js'
