@@ -1,22 +1,21 @@
 import type { Request, Response } from "express"
 import { convertImage } from "../core/index.js"
+import { HttpError } from "../errors/HttpErrors.js"
 import { fileSchema } from "../validation/options.validations.js"
 
+// No try/catch: Express 5 sends anything thrown here (including from async code)
+// to the error middleware, which picks the status and the JSON response.
 const convertImages = {
     convert: async (req: Request, res: Response) => {
 
-        if(!req.file) {
-            res.status(400).json({error: {code: 'NO_FILE', message: 'No image uploaded'}})
-            return
+        if (!req.file) {
+            throw new HttpError(400, 'NO_FILE', 'No image uploaded. Send it in the `file` field.')
         }
 
-        const parsed = fileSchema.safeParse(req.body)
-        if (!parsed.success) {
-            res.status(400).json({ error: { code: 'INVALID_SETTINGS', issues: parsed.error.issues } })
-            return
-        }
+        // Throws a ZodError on invalid settings → 400 INVALID_SETTINGS
+        const settings = fileSchema.parse(req.body)
 
-        const result = await convertImage(req.file.buffer, parsed.data)
+        const result = await convertImage(req.file.buffer, settings)
         res.type(result.output.mime).send(result.output.buffer)
     }
 }
